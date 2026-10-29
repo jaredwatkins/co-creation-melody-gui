@@ -3,9 +3,14 @@
 Serves the web UI on a free localhost port and shows it in a native
 window (pywebview / WKWebView on macOS). Falls back to opening the
 default browser if the window toolkit isn't available.
+
+Lifecycle: one instance at a time — a second launch terminates the
+first — and closing the window exits the process (server included),
+so the app never lingers windowless in the Dock.
 """
 
 import os
+import signal
 import sys
 
 # Vendored + app packages live at the bundle root.
@@ -13,6 +18,42 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))
 
 HOST = "127.0.0.1"
 PREFERRED_PORT = 8745
+LOCK = os.path.expanduser("~/.cocreate/cocreate.lock")
+
+
+def _pid_alive(pid: int) -> bool:
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def _take_single_instance() -> None:
+    """Terminate a previous instance, then record this one as the owner."""
+    try:
+        with open(LOCK) as fh:
+            old_pid = int(fh.read().strip())
+    except (OSError, ValueError):
+        old_pid = None
+    if old_pid and old_pid != os.getpid() and _pid_alive(old_pid):
+        for sig in (signal.SIGTERM, signal.SIGKILL):
+            try:
+                os.kill(old_pid, sig)
+            except OSError:
+                break
+            for _ in range(20):
+                import time
+
+                time.sleep(0.05)
+                if not _pid_alive(old_pid):
+                    break
+            else:
+                continue
+            break
+    os.makedirs(os.path.dirname(LOCK), exist_ok=True)
+    with open(LOCK, "w") as fh:
+        fh.write(str(os.getpid()))
 
 
 def _free_port() -> int:
@@ -36,6 +77,8 @@ def _run_native() -> None:
     from cocreation.engine import DEFAULT_MODEL_ID, ModelEngine
     from cocreation.server import create_app
 
+    _take_single_instance()
+
     port = _free_port()
     url = f"http://{HOST}:{port}"
     app = create_app(engine=ModelEngine(model_id=DEFAULT_MODEL_ID))
@@ -52,10 +95,11 @@ def _run_native() -> None:
         daemon=True,
     ).start()
 
-    # Blocks on the main thread until the window is closed; daemon
-    # threads (the server) die with the process.
-    webview.create_window("CoCreate", url, width=1280, height=820,
-                          min_size=(900, 600))
+    # Blocks on the main thread until the window is closed; closing also
+    # exits the process so the server thread and Dock icon never linger.
+    window = webview.create_window("CoCreate", url, width=1280, height=820,
+                                   min_size=(900, 600))
+    window.events.closed += lambda: os._exit(0)
     webview.start()
 
 
