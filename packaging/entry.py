@@ -62,7 +62,22 @@ def _run_native() -> None:
 if __name__ == "__main__":
     try:
         _run_native()
-    except ImportError:
+    except Exception:
+        # Window toolkit unavailable or failed — log the reason, then
+        # fall back to serving the UI in the default browser.
+        import datetime
+        import traceback
+
+        try:
+            logdir = os.path.expanduser("~/Library/Logs")
+            os.makedirs(logdir, exist_ok=True)
+            with open(os.path.join(logdir, "CoCreate-launch.log"), "a") as fh:
+                fh.write(f"{datetime.datetime.now().isoformat()}\n")
+                traceback.print_exc(file=fh)
+                fh.write("\n")
+        except OSError:
+            pass
+
         from cocreation.server import main
 
         main()

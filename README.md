@@ -45,6 +45,22 @@ python run_anticipation.py --input seed.mid --seconds 10 --output out.mid
 
 ## Downloadable app (macOS)
 
+Install the latest release with one Terminal line (recommended — `curl`
+downloads carry no quarantine flag, so the app installs and opens with no
+Gatekeeper prompts):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jaredwatkins/co-creation-melody-gui/main/install.sh | bash
+```
+
+Or download `CoCreate-installer.pkg` / `CoCreate.dmg` from
+[Releases](https://github.com/jaredwatkins/co-creation-melody-gui/releases)
+manually — unsigned builds are blocked until you allow them in
+System Settings → Privacy & Security → Open Anyway, or remove the flag with
+`xattr -dr com.apple.quarantine <file>`.
+
+Build locally:
+
 ```bash
 ./packaging/build_macos.sh          # -> dist/CoCreate.dmg
 ./packaging/build_macos.sh --pkg    # also dist/CoCreate-installer.pkg
