@@ -1,3 +1,10 @@
-tensorflow==1.15
-magenta==1.1.7
-note-seq
+# Runtime dependencies for the co-creation web app and CLI.
+# (The legacy Magenta scripts in legacy/ have their own, old deps — see legacy/README.md.)
+torch>=2.0.1
+transformers>=4.29.2
+mido>=1.2.10
+numpy>=1.22.4
+tqdm>=4.65.0
+fastapi>=0.110
+uvicorn[standard]>=0.29
+python-multipart>=0.0.9

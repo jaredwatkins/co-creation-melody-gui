@@ -1,7 +1,5 @@
-# Restore clean import behavior — no dynamic re-exports
-import os, sys
+"""Vendored copy of Stanford's Anticipatory Music Transformer package.
 
-inner_path = os.path.join(os.path.dirname(__file__), "anticipation")
-if inner_path not in sys.path:
-    sys.path.insert(0, inner_path)
-
+Upstream: https://github.com/jthickstun/anticipation (Apache-2.0, see LICENSE.txt)
+Model: https://huggingface.co/stanford-crfm/music-small-800k
+"""
