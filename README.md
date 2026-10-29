@@ -51,7 +51,9 @@ python run_anticipation.py --input seed.mid --seconds 10 --output out.mid
 ```
 
 Produces `CoCreate.app` via PyInstaller (torch included; the bundle is large)
-wrapped in a `.dmg` and optional `.pkg` installer. Pushing a `v*` tag runs the
+wrapped in a `.dmg` and optional `.pkg` installer. The app renders the GUI in
+its own native window — no browser tab, no HTTPS-Only warnings. Pushing a `v*`
+tag runs the
 same build on a macOS GitHub Actions runner and attaches the artifacts to a
 GitHub Release — see `.github/workflows/release.yml`.
 

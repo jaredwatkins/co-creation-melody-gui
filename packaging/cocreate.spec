@@ -16,6 +16,7 @@ hiddenimports = (
     collect_submodules("anticipation")
     + collect_submodules("uvicorn")
     + collect_submodules("mido")
+    + collect_submodules("webview")
 )
 
 a = Analysis(
