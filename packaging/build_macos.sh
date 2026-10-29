@@ -27,7 +27,11 @@ hdiutil create -volname "CoCreate" -srcfolder "$APP" -ov -format UDZO "dist/CoCr
 echo "wrote dist/CoCreate.dmg"
 
 if [ "${1:-}" = "--pkg" ]; then
-  pkgbuild --root "dist/CoCreate" \
+  # pkgbuild installs --root verbatim; stage the .app so it lands in /Applications
+  PKGROOT="$(mktemp -d)/root"
+  mkdir -p "$PKGROOT"
+  cp -R "$APP" "$PKGROOT/CoCreate.app"
+  pkgbuild --root "$PKGROOT" \
     --install-location /Applications \
     --identifier com.cocreation.app \
     "dist/CoCreate-installer.pkg"
