@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Human–AI Co-Creation</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <span class="logo">♪</span>
+    <div>
+      <h1>Co-Create</h1>
+      <span class="sub">human × anticipatory transformer</span>
+    </div>
+  </div>
+  <div class="session-controls">
+    <input id="session-name" type="text" title="Session name" />
+    <label>tempo <input id="tempo" type="number" min="40" max="240" step="1"> bpm</label>
+    <button id="new-session" class="ghost">New</button>
+    <button id="import-btn" class="ghost">Import MIDI</button>
+    <input id="import-file" type="file" accept=".mid,.midi" hidden>
+    <button id="export-midi" class="ghost">Export .mid</button>
+    <button id="export-log" class="ghost">Study log</button>
+  </div>
+  <div id="model-chip" class="chip loading">model…</div>
+</header>
+
+<main>
+  <section class="roll-wrap">
+    <div id="turn-banner" class="turn human">Your turn — sketch the melody</div>
+    <div class="toolbar">
+      <div class="tools">
+        <button data-tool="draw" class="tool active" title="Draw (D)">✏️ Draw</button>
+        <button data-tool="select" class="tool" title="Select (S)">➢ Select</button>
+        <button data-tool="erase" class="tool" title="Erase (E)">⌫ Erase</button>
+      </div>
+      <div class="snap">
+        snap <select id="snap">
+          <option value="16">1/16</option>
+          <option value="8">1/8</option>
+          <option value="4">1/4</option>
+          <option value="1">bar</option>
+        </select>
+      </div>
+      <button id="undo" title="Ctrl+Z" class="ghost">↩ Undo</button>
+      <div class="legend">
+        <span class="sw human"></span>you&nbsp;&nbsp;<span class="sw ai"></span>model
+      </div>
+    </div>
+    <div class="roll-scroll" id="roll-scroll">
+      <canvas id="roll"></canvas>
+    </div>
+  </section>
+
+  <aside>
+    <div class="panel transport">
+      <div class="row">
+        <button id="play" class="big">▶</button>
+        <button id="stop" class="big">◼</button>
+        <div class="position"><span id="pos">0:00.0</span><span id="pos-bar">bar 1</span></div>
+      </div>
+      <label class="row midi-in"><input type="checkbox" id="midi-in"> MIDI keyboard in <span id="midi-status" class="dim"></span></label>
+    </div>
+
+    <div class="panel ai-panel">
+      <h2>AI turn</h2>
+      <div class="row">
+        <label>bars <input id="gen-bars" type="number" min="1" max="16" value="2"></label>
+        <label>top-p <input id="gen-topp" type="number" min="0.5" max="1" step="0.01" value="0.98"></label>
+      </div>
+      <label class="row"><input type="checkbox" id="gen-match" checked> keep to my instruments</label>
+      <button id="generate" class="primary">✦ Continue with AI</button>
+      <div id="gen-progress" class="progress hidden"><div class="bar"></div><span></span></div>
+      <div id="draft-actions" class="row hidden">
+        <button id="accept" class="primary">✓ Keep</button>
+        <button id="discard" class="ghost">✕ Discard</button>
+      </div>
+    </div>
+
+    <div class="panel versions">
+      <h2>Versions</h2>
+      <div class="row snap-btns">
+        <button data-snap class="ghost">V0</button>
+        <button data-snap class="ghost">V1</button>
+        <button data-snap class="ghost">V2</button>
+        <button data-snap class="ghost">V3</button>
+      </div>
+      <ul id="snap-list" class="snap-list"></ul>
+      <p class="dim small">V0–V3 standardized exports, per the study protocol.</p>
+    </div>
+
+    <div class="panel log-panel">
+      <h2>Session log</h2>
+      <pre id="log-tail" class="log-tail"></pre>
+    </div>
+  </aside>
+</main>
+
+<script src="/static/audio.js"></script>
+<script src="/static/pianoroll.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

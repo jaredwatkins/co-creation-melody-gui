@@ -1,3 +1,8 @@
+> **Vendored subset** of https://github.com/jthickstun/anticipation (Apache-2.0).
+> Only the runtime package modules are kept here; tokenizer lives in `tokenize_custom.py`
+> (`tokenize.py` re-exports it for the humaneval scripts). Train/test/example
+> scripts removed — see upstream for the full repository.
+
 # Anticipatory Music Transformer
 
 Implementation of the methods described in [Anticipatory Music Transformer](https://arxiv.org/abs/2306.08620).

@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cocreation-melody"
+version = "0.1.0"
+description = "Human–AI co-creation in melody writing: a MIDI-native web GUI for Stanford's Anticipatory Music Transformer"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+dependencies = [
+    "torch>=2.0.1",
+    "transformers>=4.29.2",
+    "mido>=1.2.10",
+    "numpy>=1.22.4",
+    "tqdm>=4.65.0",
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.29",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+audio = ["midi2audio>=0.1.1"]          # optional FluidSynth WAV export (CLI --audio)
+dev   = ["pytest>=8", "httpx>=0.27", "pyinstaller>=6"]
+
+[project.scripts]
+cocreate = "cocreation.server:main"
+
+[tool.setuptools]
+packages = ["cocreation", "anticipation"]
+
+[tool.setuptools.package-data]
+cocreation = ["static/*"]

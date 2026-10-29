@@ -1,52 +1,78 @@
-# Human–AI Co-Creation in Melody Writing: A MIDI-Native Pilot on Flow, Authorship, and Control
-
 # Human–AI Co-Creation in Melody Writing
-Pilot for my Human-AI Co-Creation Project
 
-This project explores **human–AI melodic collaboration** using symbolic sequence models such as the Music Transformer and RNN-based anticipation networks.  
-It includes experiments for real-time melody co-writing and analysis of creative agency between human and machine.
+A MIDI-native co-writing system for studying human–AI melodic collaboration,
+built on Stanford's [Anticipatory Music Transformer](https://github.com/jthickstun/anticipation)
+(`stanford-crfm/music-small-800k`). This repo accompanies the paper
+*Human–AI Co-Creation in Melody Writing: A MIDI-Native Pilot on Flow,
+Authorship, and Control* — [preprint](https://doi.org/10.33767/osf.io/zwtgp_v1) ·
+[peer-reviewed artifact](https://doi.org/10.17605/OSF.IO/P3HQG).
 
-## Features
-- Symbolic melody generation and continuation using Transformer and RNN models  
-- Real-time co-creation pipeline (`run_anticipation.py`)  
-- Model comparison and evaluation tools  
-- Ready for ISMIR reproducibility (Python 3.8+)
+## The app
 
-### Model
-- [`stanford-crfm/music-small-800k`](https://huggingface.co/stanford-crfm/music-small-800k)
-- Autoregressive transformer trained on 800k MIDI sequences
-- Hosted via HuggingFace Transformers
+A local web app with a piano-roll editor implementing the paper's bar-aligned
+co-creation loop:
 
-### Data and artifacts
-- Project materials and study artifacts: https://doi.org/10.17605/OSF.IO/P3HQG
+- **Piano-roll editor** — draw, move, resize, and erase notes on a bar-aligned
+  grid; snap to 1/16–bar.
+- **AI turn** — "Continue with AI" generates the next N bars with the
+  anticipatory transformer. Notes you write *ahead* of the cursor are treated
+  as anticipated controls — the model fills toward them. Drafts appear ghosted
+  until you **Keep** or **Discard** them.
+- **Human vs. model provenance** — human notes blue, model notes orange.
+- **Playback** — in-browser WebAudio synthesis (no FluidSynth needed), MIDI
+  keyboard input via Web MIDI.
+- **V0–V3 snapshots** — one-click standardized version exports per the study
+  protocol, each downloadable as `.mid` or restorable.
+- **Study log** — every edit, generation, accept/discard, snapshot and export
+  is appended to a per-session `events.jsonl` for reproducible analysis.
 
-## Quick Start
+## Run it
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/your-username/your-repo-name.git
-   cd your-repo-name
+```bash
+pip install -e .
+cocreate          # serves the UI and opens your browser
+```
 
-2. **Create and activate a Python 3.8 environment**
-   python3.8 -m venv venv
-source venv/bin/activate   # macOS/Linux
-venv\Scripts\activate      # Windows
-  
-3. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-  
-4. **Run generation:**
+Python 3.9+. The `stanford-crfm/music-small-800k` weights (~500 MB) download
+to the HuggingFace cache on first run. Generation runs on CUDA / Apple-Silicon
+MPS when available, CPU otherwise.
 
-   python run_anticipation.py --input my_melody.mid --output output.mid
+Terminal-only generation is still available:
 
-**Folder overview**
-    anticipation/         # Core model files
-    utils/                # Helper functions
-    generate.py           # Model inference script
-    run_anticipation.py   # Main experiment runner
-    requirements.txt      # Dependencies
-    README.md             # Project documentation
-    LICENSE               # License information
+```bash
+python run_anticipation.py --input seed.mid --seconds 10 --output out.mid
+```
 
+## Downloadable app (macOS)
 
+```bash
+./packaging/build_macos.sh          # -> dist/CoCreate.dmg
+./packaging/build_macos.sh --pkg    # also dist/CoCreate-installer.pkg
+```
+
+Produces `CoCreate.app` via PyInstaller (torch included; the bundle is large)
+wrapped in a `.dmg` and optional `.pkg` installer. Pushing a `v*` tag runs the
+same build on a macOS GitHub Actions runner and attaches the artifacts to a
+GitHub Release — see `.github/workflows/release.yml`.
+
+## Layout
+
+    cocreation/          the web app (FastAPI backend + vanilla-JS frontend)
+    anticipation/        vendored Stanford Anticipatory Music Transformer (Apache-2.0)
+    experiments/         upstream humaneval scripts the pilot was based on
+    legacy/              early Magenta experiments (unsupported — see legacy/README.md)
+    tests/               unit + API tests (pytest)
+    packaging/           PyInstaller spec and macOS build script
+
+## Development
+
+```bash
+pip install -e ".[dev]"
+pytest tests/ -v
+```
+
+## License
+
+MIT for the application code (© 2025 Jared Watkins). `anticipation/` is a
+vendored copy of Stanford's Apache-2.0-licensed package — see
+`anticipation/LICENSE.txt` and `anticipation/UPSTREAM.md`.

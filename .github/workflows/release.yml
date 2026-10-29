@@ -1,0 +1,24 @@
+name: release
+
+# Builds the macOS app and attaches CoCreate.dmg / CoCreate-installer.pkg to
+# the GitHub Release for a pushed version tag:  git tag v0.1.0 && git push --tags
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build app + dmg + pkg
+        run: ./packaging/build_macos.sh --pkg
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/CoCreate.dmg
+            dist/CoCreate-installer.pkg
