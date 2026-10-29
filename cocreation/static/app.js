@@ -36,7 +36,20 @@ function commit(notes, reason) {
   }, 350);
 }
 roll.onCommit = commit;
-roll.onSeek = t => { seekTo = t; setPlayhead(t); };
+// Scrub: move the playhead; if audio is playing, re-cue it at the new spot
+// (throttled during drags, always once on release).
+let lastCue = 0;
+roll.onSeek = (t, done) => {
+  seekTo = t; setPlayhead(t);
+  if (AudioEngine.playing) {
+    const now = performance.now();
+    if (done || now - lastCue > 120) {
+      lastCue = now;
+      loopStart = t;
+      AudioEngine.play(allNotes(), t);
+    }
+  }
+};
 
 let seekTo = 0;
 function applySession(sess) {
@@ -47,6 +60,7 @@ function applySession(sess) {
   $("session-name").value = sess.name;
   $("tempo").value = sess.tempo;
   $("undo").disabled = !sess.can_undo;
+  $("redo").disabled = !sess.can_redo;
   renderSnapshots();
 }
 
@@ -77,7 +91,8 @@ async function pollModel() {
 }
 
 // ---------- transport ----------
-let playStartScore = null;
+let loopOn = false;
+let loopStart = 0;   // where the current/restarted loop cycle begins
 function setPlayhead(t) {
   roll.setPlayhead(t);
   const m = Math.floor(t / 60), s = t % 60;
@@ -87,17 +102,26 @@ function setPlayhead(t) {
 
 $("play").onclick = () => {
   if (AudioEngine.playing) { AudioEngine.stop(); $("play").textContent = "▶"; return; }
-  const t = seekTo || 0;
-  if (AudioEngine.play(allNotes(), t)) {
-    $("play").textContent = "⏸";
-    tickPlayhead();
-    logEvent("play", {from: t});
+  let t = seekTo || 0;
+  if (!AudioEngine.play(allNotes(), t)) {
+    // nothing ahead of the playhead (e.g. just played to the end) -> start over
+    if (!AudioEngine.play(allNotes(), 0)) return;
+    t = 0;
   }
+  loopStart = t;
+  $("play").textContent = "⏸";
+  tickPlayhead();
+  logEvent("play", {from: t});
 };
 $("stop").onclick = () => {
   AudioEngine.stop();
   $("play").textContent = "▶";
   setPlayhead(0); seekTo = 0;
+};
+$("loop").onclick = () => {
+  loopOn = !loopOn;
+  $("loop").classList.toggle("on", loopOn);
+  logEvent("loop", {on: loopOn});
 };
 
 function allNotes() { return [...state.notes, ...state.draft]; }
@@ -105,7 +129,16 @@ function allNotes() { return [...state.notes, ...state.draft]; }
 function tickPlayhead() {
   if (!AudioEngine.playing) { $("play").textContent = "▶"; return; }
   const t = AudioEngine.playhead();
-  if (t == null) { $("play").textContent = "▶"; setPlayhead(0); return; }
+  if (t == null) {   // reached the end
+    if (loopOn && AudioEngine.play(allNotes(), loopStart)) {
+      setPlayhead(loopStart); seekTo = loopStart;
+      requestAnimationFrame(tickPlayhead);
+      return;
+    }
+    $("play").textContent = "▶";
+    seekTo = 0; setPlayhead(0);
+    return;
+  }
   setPlayhead(t); seekTo = t;
   requestAnimationFrame(tickPlayhead);
 }
@@ -120,6 +153,7 @@ document.querySelectorAll(".tool").forEach(btn => {
 });
 $("snap").onchange = e => { roll.snapDiv = +e.target.value; roll.redraw(); };
 $("undo").onclick = doUndo;
+$("redo").onclick = doRedo;
 
 async function doUndo() {
   if (state.draft.length) {   // undo first clears the AI draft
@@ -130,6 +164,11 @@ async function doUndo() {
     return;
   }
   const r = await api.send("POST", "/api/undo");
+  if (r.ok) applySession(r.session);
+}
+
+async function doRedo() {
+  const r = await api.send("POST", "/api/redo");
   if (r.ok) applySession(r.session);
 }
 
@@ -198,15 +237,14 @@ $("discard").onclick = async () => {
   refreshLogTail();
 };
 
-// ---------- snapshots ----------
-document.querySelectorAll("[data-snap]").forEach(btn => {
-  btn.onclick = async () => {
-    await api.send("POST", "/api/snapshots?label=" + btn.textContent);
-    const s = await api.get("/api/state");
-    applySession(s.session);
-    refreshLogTail();
-  };
-});
+// ---------- snapshots (saved versions) ----------
+$("save-version").onclick = async () => {
+  await api.send("POST", "/api/snapshots");
+  const s = await api.get("/api/state");
+  applySession(s.session);
+  refreshLogTail();
+  toast("version saved — listed below");
+};
 
 function renderSnapshots() {
   const ul = $("snap-list");
@@ -228,6 +266,33 @@ function renderSnapshots() {
   });
 }
 
+// ---------- downloads ----------
+// Inside the native app window there are no browser downloads, so the
+// packaged app saves through pywebview into ~/Downloads instead.
+function blobToB64(blob) {
+  return new Promise(res => {
+    const r = new FileReader();
+    r.onload = () => res(r.result.split(",")[1]);
+    r.readAsDataURL(blob);
+  });
+}
+
+async function saveNative(resp) {
+  const cd = resp.headers.get("Content-Disposition") || "";
+  const m = cd.match(/filename="?([^";]+)/);
+  const b64 = await blobToB64(await resp.blob());
+  return window.pywebview.api.save_file(m ? m[1] : "export", b64);
+}
+
+let toastTimer = null;
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3200);
+}
+
 // ---------- import / export ----------
 $("import-btn").onclick = () => $("import-file").click();
 $("import-file").onchange = async e => {
@@ -245,21 +310,42 @@ $("import-file").onchange = async e => {
   }
   e.target.value = "";
 };
-$("export-midi").onclick = () => {
+$("export-midi").onclick = async () => {
   logEvent("export_click", {});
-  location.href = "/api/export/midi";
+  if (window.pywebview) {
+    const path = await saveNative(await fetch("/api/export/midi"));
+    toast("saved to " + path);
+  } else {
+    location.href = "/api/export/midi";
+  }
 };
-$("export-log").onclick = () => window.open("/api/export/log", "_blank");
+$("export-log").onclick = async () => {
+  const txt = await (await fetch("/api/export/log")).text();
+  $("log-view").textContent = txt || "(log is empty)";
+  $("log-modal").classList.remove("hidden");
+};
+$("log-close").onclick = () => $("log-modal").classList.add("hidden");
+$("log-save").onclick = async () => {
+  if (window.pywebview) {
+    const path = await saveNative(await fetch("/api/export/log"));
+    toast("saved to " + path);
+  } else {
+    const a = document.createElement("a");
+    a.href = "/api/export/log"; a.download = "events.jsonl"; a.click();
+  }
+};
 
 $("new-session").onclick = async () => {
   if (state.notes.length &&
       !confirm("Start a new session? Current notes will stay saved in the previous session's folder."))
     return;
+  AudioEngine.stop(); $("play").textContent = "▶";
   const r = await api.send("POST", "/api/session/new",
                            {name: "Untitled session", tempo: +$("tempo").value || 120, seed: "demo"});
   state.draft = [];
   roll.setDraft([]);
   applySession(r.session);
+  seekTo = 0; setPlayhead(0);
   setBanner("human", "Your turn — sketch the melody");
 };
 
@@ -321,7 +407,11 @@ document.addEventListener("keydown", e => {
   else if (k === "e") setTool("erase");
   else if (k === " ") { e.preventDefault(); $("play").click(); }
   else if (k === "delete" || k === "backspace") roll.deleteSelected();
-  else if ((e.ctrlKey || e.metaKey) && k === "z") { e.preventDefault(); doUndo(); }
+  else if ((e.ctrlKey || e.metaKey) && k === "z") {
+    e.preventDefault();
+    if (e.shiftKey) doRedo(); else doUndo();
+  }
+  else if ((e.ctrlKey || e.metaKey) && k === "y") { e.preventDefault(); doRedo(); }
 });
 function setTool(t) {
   document.querySelector(`[data-tool="${t}"]`).click();

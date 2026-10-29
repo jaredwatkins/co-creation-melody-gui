@@ -21,6 +21,27 @@ PREFERRED_PORT = 8745
 LOCK = os.path.expanduser("~/.cocreate/cocreate.lock")
 
 
+class _SaveApi:
+    """Exposed to the page as window.pywebview.api — the native window has no
+    browser download machinery, so exports write into ~/Downloads."""
+
+    def save_file(self, filename: str, b64: str) -> str:
+        import base64
+
+        data = base64.b64decode(b64)
+        outdir = os.path.expanduser("~/Downloads")
+        os.makedirs(outdir, exist_ok=True)
+        path = os.path.join(outdir, os.path.basename(filename) or "export")
+        root, ext = os.path.splitext(path)
+        i = 1
+        while os.path.exists(path):
+            path = f"{root}-{i}{ext}"
+            i += 1
+        with open(path, "wb") as fh:
+            fh.write(data)
+        return path
+
+
 def _pid_alive(pid: int) -> bool:
     try:
         os.kill(pid, 0)
@@ -98,7 +119,7 @@ def _run_native() -> None:
     # Blocks on the main thread until the window is closed; closing also
     # exits the process so the server thread and Dock icon never linger.
     window = webview.create_window("CoCreate", url, width=1280, height=820,
-                                   min_size=(900, 600))
+                                   min_size=(900, 600), js_api=_SaveApi())
     window.events.closed += lambda: os._exit(0)
     webview.start()
 

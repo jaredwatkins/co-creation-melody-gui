@@ -84,13 +84,31 @@ aside { width: 300px; border-left: 1px solid var(--line); overflow-y: auto;
 .ghost { background: none; border: 1px solid var(--line); border-radius: 8px;
   padding: 6px 10px; color: var(--text); }
 .ghost:hover { border-color: var(--accent); }
+.ghost:disabled { opacity: .45; cursor: default; }
+.ghost.wide { width: 100%; margin-bottom: 2px; }
+.big.on { border-color: var(--accent); color: var(--accent); }
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 50;
+  display: flex; align-items: center; justify-content: center; }
+.modal-card { width: min(780px, 90vw); max-height: 82vh; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+  display: flex; flex-direction: column; }
+.modal-card h2 { font-size: 13px; margin: 0; color: var(--dim);
+  text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.modal-card .row span { flex: 1; }
+.log-view { font: 11px/1.5 "SF Mono", Menlo, monospace; color: var(--dim);
+  overflow: auto; flex: 1; white-space: pre-wrap; margin: 12px 0 0; }
+#toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px;
+  padding: 8px 14px; font-size: 12px; opacity: 0; transition: opacity .25s;
+  pointer-events: none; z-index: 60; max-width: 80vw; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+#toast.show { opacity: 1; }
 .progress { margin-top: 10px; }
 .progress .bar { height: 6px; border-radius: 3px; background: var(--line);
   overflow: hidden; position: relative; }
 .progress .bar::after { content: ""; position: absolute; inset: 0;
   background: var(--ai); width: var(--p, 0%); transition: width .4s; }
 .progress span { font-size: 11px; color: var(--dim); }
-.snap-btns button { flex: 1; }
 .snap-list { list-style: none; margin: 8px 0 0; padding: 0; font-size: 12px; }
 .snap-list li { display: flex; gap: 6px; align-items: center;
   padding: 4px 0; border-top: 1px solid var(--line); }

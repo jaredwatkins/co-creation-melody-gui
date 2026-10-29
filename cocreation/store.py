@@ -38,6 +38,7 @@ class Session:
         self.next_snapshot = 0
         self.created_at = time.time()
         self._undo = []
+        self._redo = []
         self.dir = os.path.join(DATA_DIR, "sessions", self.id)
         self.log_path = os.path.join(self.dir, "events.jsonl")
         self.state_path = os.path.join(self.dir, "session.json")
@@ -68,6 +69,7 @@ class Session:
 
         self._undo.append(self.notes)
         self._undo = self._undo[-MAX_UNDO:]
+        self._redo = []
         self.notes = notes
         self.log("score", actor=actor, reason=reason,
                  added=len(added), removed=len(removed), changed=len(changed),
@@ -80,8 +82,18 @@ class Session:
     def undo(self):
         if not self._undo:
             return False
+        self._redo.append(self.notes)
         self.notes = self._undo.pop()
         self.log("undo", total=len(self.notes))
+        self.save()
+        return True
+
+    def redo(self):
+        if not self._redo:
+            return False
+        self._undo.append(self.notes)
+        self.notes = self._redo.pop()
+        self.log("redo", total=len(self.notes))
         self.save()
         return True
 
@@ -120,6 +132,7 @@ class Session:
                            "n_notes": s["n_notes"]}
                           for s in self.snapshots.values()],
             "can_undo": bool(self._undo),
+            "can_redo": bool(self._redo),
             "next_snapshot": self.next_snapshot,
         }
         if include_notes:

@@ -136,6 +136,12 @@ def create_app(session: Session | None = None,
             return {"ok": False, "session": session.to_dict()}
         return {"ok": True, "session": session.to_dict()}
 
+    @app.post("/api/redo")
+    def redo():
+        if not session.redo():
+            return {"ok": False, "session": session.to_dict()}
+        return {"ok": True, "session": session.to_dict()}
+
     # ---- generation -----------------------------------------------------------
     @app.post("/api/generate")
     def generate(req: GenerateRequest):

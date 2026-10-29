@@ -96,9 +96,28 @@ class PianoRoll {
     el.addEventListener("pointermove", e => this._move(e));
     el.addEventListener("pointerup", e => this._up(e));
     el.addEventListener("dblclick", e => this._dbl(e));
+    // bar ruler doubles as the scrub bar: click or drag to move the playhead
+    let scrubbing = false, scrubT = 0;
     this.ruler.addEventListener("pointerdown", e => {
-      if (this.onSeek) this.onSeek(this.x2t(e.offsetX));
+      scrubbing = true;
+      el_setPointerCapture(this.ruler, e);
+      if (this.onSeek) {
+        scrubT = Math.max(0, this.x2t(e.offsetX));
+        this.onSeek(scrubT, false);
+      }
     });
+    this.ruler.addEventListener("pointermove", e => {
+      if (scrubbing && this.onSeek) {
+        scrubT = Math.max(0, this.x2t(e.offsetX));
+        this.onSeek(scrubT, false);
+      }
+    });
+    const endScrub = () => {
+      if (scrubbing && this.onSeek) this.onSeek(scrubT, true);
+      scrubbing = false;
+    };
+    this.ruler.addEventListener("pointerup", endScrub);
+    this.ruler.addEventListener("pointercancel", endScrub);
     this.scroll.addEventListener("wheel", e => {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
