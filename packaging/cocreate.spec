@@ -19,11 +19,16 @@ hiddenimports = (
     + collect_submodules("webview")
 )
 
+_datas = [(os.path.join(ROOT, "cocreation", "static"), "cocreation/static")]
+_version_file = os.path.join(ROOT, "cocreation", "VERSION")
+if os.path.exists(_version_file):  # written by CI at release time
+    _datas.append((_version_file, "cocreation"))
+
 a = Analysis(
     [os.path.join(ROOT, "packaging", "entry.py")],
     pathex=[ROOT],
     binaries=[],
-    datas=[(os.path.join(ROOT, "cocreation", "static"), "cocreation/static")],
+    datas=_datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],

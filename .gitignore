@@ -216,3 +216,4 @@ build/
 *.spec.bak
 .venv*/
 .pytest_cache/
+cocreation/VERSION

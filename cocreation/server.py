@@ -14,6 +14,15 @@ from .store import SNAPSHOT_LABELS, Session
 STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
 
 
+def _app_version() -> str:
+    """Release tag stamped by CI into cocreation/VERSION ('dev' when absent)."""
+    try:
+        with open(os.path.join(os.path.dirname(__file__), "VERSION")) as fh:
+            return fh.read().strip() or "dev"
+    except OSError:
+        return "dev"
+
+
 class ScoreUpdate(BaseModel):
     notes: list
     reason: str = "edit"
@@ -88,6 +97,7 @@ def create_app(session: Session | None = None,
             "session": session.to_dict(),
             "model": engine.status(),
             "fresh": app.state.fresh,
+            "version": _app_version(),
         }
 
     @app.post("/api/session/new")

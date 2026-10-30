@@ -16,6 +16,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Stamp version
+        run: echo "$GITHUB_REF_NAME" > cocreation/VERSION
       - name: Build app + dmg + pkg
         run: bash packaging/build_macos.sh --pkg
       - name: Upload release assets

@@ -253,10 +253,18 @@ function renderSnapshots() {
     const li = document.createElement("li");
     const when = new Date(s.created_at * 1000).toLocaleTimeString();
     li.innerHTML = `<span class="lab">${s.label}</span> ${s.n_notes} notes · ${when}
-      <a href="/api/snapshots/${s.label}/midi" title="download .mid">mid</a>
+      <a href="/api/snapshots/${s.label}/midi" data-mid="${s.label}" title="download .mid">mid</a>
       <a href="#" data-restore="${s.label}">restore</a>`;
     ul.appendChild(li);
   }
+  ul.querySelectorAll("[data-mid]").forEach(a => {
+    a.onclick = async e => {
+      if (!window.pywebview) return;      // browser: normal download
+      e.preventDefault();
+      const path = await saveNative(await fetch(a.href));
+      toast("saved to " + path);
+    };
+  });
   ul.querySelectorAll("[data-restore]").forEach(a => {
     a.onclick = async e => {
       e.preventDefault();
@@ -420,6 +428,7 @@ function setTool(t) {
 // ---------- boot ----------
 (async function init() {
   const s = await api.get("/api/state");
+  if (s.version) $("app-ver").textContent = s.version;
   applySession(s.session);
   if (s.fresh) {
     // very first run: seed a demo melody so there's something to continue
