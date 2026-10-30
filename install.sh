@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Install CoCreate on macOS — no Gatekeeper prompts.
 #
-# Files fetched with curl never get a quarantine attribute, so the app
-# installed this way opens like a normal download would. Paste into Terminal:
+# Downloads the signed-package-style .pkg and installs it with `installer`,
+# which doesn't run the browser-download quarantine check. Paste into
+# Terminal:
 #
 #   curl -fsSL https://raw.githubusercontent.com/jaredwatkins/co-creation-melody-gui/main/install.sh | bash
 #
@@ -21,21 +22,11 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 echo "Downloading CoCreate $TAG ..."
-curl -fL "https://github.com/$REPO/releases/download/$TAG/CoCreate.dmg" -o "$TMP/CoCreate.dmg"
+curl -fL "https://github.com/$REPO/releases/download/$TAG/CoCreate-installer.pkg" \
+     -o "$TMP/CoCreate-installer.pkg"
 
-echo "Installing to $APP ..."
-MNT=$(hdiutil attach -nobrowse -readonly "$TMP/CoCreate.dmg" \
-      | grep -o '/Volumes/.*' | head -1)
-cp -R "$MNT/CoCreate.app" "$TMP/"
-hdiutil detach -quiet "$MNT"
-
-if [ -d "$APP" ] && [ ! -w "$(dirname "$APP")" ]; then
-  sudo rm -rf "$APP"
-  sudo cp -R "$TMP/CoCreate.app" "$APP"
-else
-  rm -rf "$APP"
-  cp -R "$TMP/CoCreate.app" "$APP"
-fi
+echo "Installing to $APP (asks for your Mac password) ..."
+sudo installer -pkg "$TMP/CoCreate-installer.pkg" -target /
 
 # Belt and suspenders: strip quarantine if anything managed to acquire it.
 xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true

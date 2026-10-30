@@ -53,11 +53,12 @@ Gatekeeper prompts):
 curl -fsSL https://raw.githubusercontent.com/jaredwatkins/co-creation-melody-gui/main/install.sh | bash
 ```
 
-Or download `CoCreate-installer.pkg` / `CoCreate.dmg` from
+Or download `CoCreate-installer.pkg` from
 [Releases](https://github.com/jaredwatkins/co-creation-melody-gui/releases)
 manually — unsigned builds are blocked until you allow them in
 System Settings → Privacy & Security → Open Anyway, or remove the flag with
-`xattr -dr com.apple.quarantine <file>`.
+`xattr -dr com.apple.quarantine <file>`, or install via Terminal:
+`sudo installer -pkg ~/Downloads/CoCreate-installer.pkg -target /`.
 
 Build locally:
 
