@@ -1,7 +1,7 @@
 name: release
 
-# Builds the macOS app and attaches CoCreate.dmg to the GitHub Release for a
-# pushed version tag:  git tag v0.1.0 && git push --tags
+# Builds the macOS app and attaches CoCreate-installer.pkg to the GitHub
+# Release for a pushed version tag:  git tag v0.1.0 && git push --tags
 on:
   push:
     tags: ["v*"]
