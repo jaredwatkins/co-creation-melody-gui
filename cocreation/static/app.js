@@ -127,9 +127,9 @@ $("loop").onclick = () => {
 function allNotes() { return [...state.notes, ...state.draft]; }
 
 function tickPlayhead() {
-  if (!AudioEngine.playing) { $("play").textContent = "▶"; return; }
   const t = AudioEngine.playhead();
-  if (t == null) {   // reached the end
+  const ended = t !== null && t >= AudioEngine.endSec;   // natural end
+  if (ended) {
     if (loopOn && AudioEngine.play(allNotes(), loopStart)) {
       setPlayhead(loopStart); seekTo = loopStart;
       requestAnimationFrame(tickPlayhead);
@@ -139,6 +139,7 @@ function tickPlayhead() {
     seekTo = 0; setPlayhead(0);
     return;
   }
+  if (t == null) { $("play").textContent = "▶"; return; }   // stopped
   setPlayhead(t); seekTo = t;
   requestAnimationFrame(tickPlayhead);
 }
@@ -261,7 +262,8 @@ function renderSnapshots() {
     a.onclick = async e => {
       if (!window.pywebview) return;      // browser: normal download
       e.preventDefault();
-      const path = await saveNative(await fetch(a.href));
+      const path = await saveNative(await fetch(a.href),
+        `${state.session.id}_${a.dataset.mid}.mid`);
       toast("saved to " + path);
     };
   });
@@ -285,11 +287,11 @@ function blobToB64(blob) {
   });
 }
 
-async function saveNative(resp) {
+async function saveNative(resp, fallback) {
   const cd = resp.headers.get("Content-Disposition") || "";
   const m = cd.match(/filename="?([^";]+)/);
   const b64 = await blobToB64(await resp.blob());
-  return window.pywebview.api.save_file(m ? m[1] : "export", b64);
+  return window.pywebview.api.save_file(m ? m[1] : fallback, b64);
 }
 
 let toastTimer = null;
@@ -321,7 +323,8 @@ $("import-file").onchange = async e => {
 $("export-midi").onclick = async () => {
   logEvent("export_click", {});
   if (window.pywebview) {
-    const path = await saveNative(await fetch("/api/export/midi"));
+    const path = await saveNative(await fetch("/api/export/midi"),
+      `${((state.session && state.session.name) || "session").replace(/\s+/g, "_")}.mid`);
     toast("saved to " + path);
   } else {
     location.href = "/api/export/midi";
@@ -335,7 +338,8 @@ $("export-log").onclick = async () => {
 $("log-close").onclick = () => $("log-modal").classList.add("hidden");
 $("log-save").onclick = async () => {
   if (window.pywebview) {
-    const path = await saveNative(await fetch("/api/export/log"));
+    const path = await saveNative(await fetch("/api/export/log"),
+      `${state.session.id}_events.jsonl`);
     toast("saved to " + path);
   } else {
     const a = document.createElement("a");
