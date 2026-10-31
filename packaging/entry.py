@@ -4,13 +4,18 @@ Serves the web UI on a free localhost port and shows it in a native
 window (pywebview / WKWebView on macOS). Falls back to opening the
 default browser if the window toolkit isn't available.
 
-Lifecycle: one instance at a time — a second launch terminates the
-first — and closing the window exits the process (server included),
-so the app never lingers windowless in the Dock.
+Lifecycle: one instance at a time — a second launch defers to the
+running app and exits — and closing the window exits the process
+(server included), so the app never lingers windowless in the Dock.
+
+Startup order matters: the window opens immediately with a loading
+screen, while the heavier imports (torch/transformers) and the server
+come up in a worker thread. That way a slow first boot still shows
+something in seconds, and impatient re-clicks can't kill a mid-boot
+instance.
 """
 
 import os
-import signal
 import sys
 
 # Vendored + app packages live at the bundle root.
@@ -19,6 +24,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(sys.argv[0])))
 HOST = "127.0.0.1"
 PREFERRED_PORT = 8745
 LOCK = os.path.expanduser("~/.cocreate/cocreate.lock")
+
+_LOADING_HTML = """
+<!doctype html><html><body style="margin:0;height:100vh;display:flex;
+align-items:center;justify-content:center;background:#14161c;color:#cfd3e1;
+font-family:-apple-system,Helvetica,sans-serif">
+<div style="text-align:center">
+  <div style="font-size:28px;font-weight:600;letter-spacing:.5px">CoCreate</div>
+  <div style="margin-top:10px;font-size:14px;color:#8b90a3">
+    starting up&hellip; first launch can take a minute
+  </div>
+</div></body></html>
+"""
 
 
 class _SaveApi:
@@ -52,7 +69,7 @@ def _pid_alive(pid: int) -> bool:
 
 def _is_our_app(pid: int) -> bool:
     """True when the pid is a CoCreate process — so a stale lock pointing at a
-    recycled pid can't make us kill an unrelated process."""
+    recycled pid can't make us mistake an unrelated process for the app."""
     import subprocess
 
     try:
@@ -63,8 +80,12 @@ def _is_our_app(pid: int) -> bool:
         return False
 
 
-def _take_single_instance() -> None:
-    """Terminate a previous instance, then record this one as the owner."""
+def _single_instance_or_exit() -> None:
+    """If another CoCreate instance is alive, let it win and exit quietly.
+
+    macOS activates the already-running app on `open`/Dock clicks, so the
+    existing window stays in front — relaunching never restarts anything.
+    """
     try:
         with open(LOCK) as fh:
             old_pid = int(fh.read().strip())
@@ -72,20 +93,7 @@ def _take_single_instance() -> None:
         old_pid = None
     if (old_pid and old_pid != os.getpid() and _pid_alive(old_pid)
             and _is_our_app(old_pid)):
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try:
-                os.kill(old_pid, sig)
-            except OSError:
-                break
-            for _ in range(20):
-                import time
-
-                time.sleep(0.05)
-                if not _pid_alive(old_pid):
-                    break
-            else:
-                continue
-            break
+        os._exit(0)
     os.makedirs(os.path.dirname(LOCK), exist_ok=True)
     with open(LOCK, "w") as fh:
         fh.write(str(os.getpid()))
@@ -103,39 +111,64 @@ def _free_port() -> int:
             return s.getsockname()[1]
 
 
-def _run_native() -> None:
+def _wait_ready(port: int, tries: int = 600) -> None:
+    import socket
+    import time
+
+    for _ in range(tries):
+        try:
+            with socket.create_connection((HOST, port), 0.5):
+                return
+        except OSError:
+            time.sleep(0.1)
+
+
+def _serve(window, port: int) -> None:
+    """Runs inside webview.start's worker thread: imports the app stack,
+    starts uvicorn, then points the already-visible window at the UI."""
     import threading
 
     import uvicorn
+
+    try:
+        from cocreation.engine import DEFAULT_MODEL_ID, ModelEngine
+        from cocreation.server import create_app
+
+        app = create_app(engine=ModelEngine(model_id=DEFAULT_MODEL_ID))
+        threading.Thread(
+            target=uvicorn.run,
+            kwargs={
+                "app": app,
+                "host": HOST,
+                "port": port,
+                "log_level": "warning",
+                "log_config": None,
+            },
+            daemon=True,
+        ).start()
+        _wait_ready(port)
+        window.load_url(f"http://{HOST}:{port}")
+    except Exception as exc:
+        window.load_html(
+            "<h1 style='font-family:sans-serif;padding:2em'>"
+            f"CoCreate failed to start: {exc}</h1>")
+
+
+def _run_native() -> None:
     import webview
 
-    from cocreation.engine import DEFAULT_MODEL_ID, ModelEngine
-    from cocreation.server import create_app
-
-    _take_single_instance()
+    _single_instance_or_exit()
 
     port = _free_port()
-    url = f"http://{HOST}:{port}"
-    app = create_app(engine=ModelEngine(model_id=DEFAULT_MODEL_ID))
 
-    threading.Thread(
-        target=uvicorn.run,
-        kwargs={
-            "app": app,
-            "host": HOST,
-            "port": port,
-            "log_level": "warning",
-            "log_config": None,
-        },
-        daemon=True,
-    ).start()
-
-    # Blocks on the main thread until the window is closed; closing also
-    # exits the process so the server thread and Dock icon never linger.
-    window = webview.create_window("CoCreate", url, width=1280, height=820,
-                                   min_size=(900, 600), js_api=_SaveApi())
+    # Window opens first with a loading page; webview.start(func, arg)
+    # runs _serve on a worker thread — it brings the server up and then
+    # swaps the loading page for the real UI.
+    window = webview.create_window(
+        "CoCreate", html=_LOADING_HTML, width=1280, height=820,
+        min_size=(900, 600), js_api=_SaveApi())
     window.events.closed += lambda: os._exit(0)
-    webview.start()
+    webview.start(_serve, (window, port))
 
 
 if __name__ == "__main__":

@@ -71,5 +71,8 @@ if sys.platform == "darwin":
             "CFBundleDisplayName": "CoCreate – Human–AI Melody Co-Creation",
             "CFBundleShortVersionString": "0.1.0",
             "NSHighResolutionCapable": True,
+            # Never let launchd spawn a second process for this app; the
+            # entry point also defers to a running instance.
+            "LSMultipleInstancesProhibited": True,
         },
     )
