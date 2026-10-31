@@ -47,7 +47,10 @@ exe = EXE(
     strip=False,
     upx=False,
     console=False,            # windowed: no terminal pops up on macOS
-    argv_emulation=True,
+    # argv_emulation relaunches the process on every macOS "reopen"
+    # AppleEvent (Dock click, `open`), which fights the single-instance
+    # guard — we don't need Finder file-open events anyway.
+    argv_emulation=False,
 )
 
 coll = COLLECT(

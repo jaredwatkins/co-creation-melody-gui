@@ -50,6 +50,19 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
+def _is_our_app(pid: int) -> bool:
+    """True when the pid is a CoCreate process — so a stale lock pointing at a
+    recycled pid can't make us kill an unrelated process."""
+    import subprocess
+
+    try:
+        out = subprocess.run(["ps", "-o", "comm=", "-p", str(pid)],
+                             capture_output=True, text=True, timeout=5)
+        return "CoCreate" in out.stdout or "cocreate" in out.stdout
+    except Exception:
+        return False
+
+
 def _take_single_instance() -> None:
     """Terminate a previous instance, then record this one as the owner."""
     try:
@@ -57,7 +70,8 @@ def _take_single_instance() -> None:
             old_pid = int(fh.read().strip())
     except (OSError, ValueError):
         old_pid = None
-    if old_pid and old_pid != os.getpid() and _pid_alive(old_pid):
+    if (old_pid and old_pid != os.getpid() and _pid_alive(old_pid)
+            and _is_our_app(old_pid)):
         for sig in (signal.SIGTERM, signal.SIGKILL):
             try:
                 os.kill(old_pid, sig)
