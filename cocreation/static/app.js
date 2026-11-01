@@ -264,7 +264,7 @@ function renderSnapshots() {
       e.preventDefault();
       const path = await saveNative(await fetch(a.href),
         `${state.session.id}_${a.dataset.mid}.mid`);
-      toast("saved to " + path);
+      toast(path ? "saved to " + path : "export failed on the server");
     };
   });
   ul.querySelectorAll("[data-restore]").forEach(a => {
@@ -288,6 +288,7 @@ function blobToB64(blob) {
 }
 
 async function saveNative(resp, fallback) {
+  if (!resp.ok) return null;   // don't write a server's error body as the file
   const cd = resp.headers.get("Content-Disposition") || "";
   const m = cd.match(/filename="?([^";]+)/);
   const b64 = await blobToB64(await resp.blob());
@@ -325,7 +326,7 @@ $("export-midi").onclick = async () => {
   if (window.pywebview) {
     const path = await saveNative(await fetch("/api/export/midi"),
       `${((state.session && state.session.name) || "session").replace(/\s+/g, "_")}.mid`);
-    toast("saved to " + path);
+    toast(path ? "saved to " + path : "export failed on the server");
   } else {
     location.href = "/api/export/midi";
   }
@@ -340,7 +341,7 @@ $("log-save").onclick = async () => {
   if (window.pywebview) {
     const path = await saveNative(await fetch("/api/export/log"),
       `${state.session.id}_events.jsonl`);
-    toast("saved to " + path);
+    toast(path ? "saved to " + path : "export failed on the server");
   } else {
     const a = document.createElement("a");
     a.href = "/api/export/log"; a.download = "events.jsonl"; a.click();

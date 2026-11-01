@@ -90,12 +90,17 @@ def notes_to_midi(notes, tempo=500000):
 
     abs_msgs = []  # (tick, order, message-builder)
     for n in notes:
+        # clamp into MIDI range — generated notes can exceed it and would
+        # otherwise make mido raise, failing the whole export (128 is the
+        # drum-kit sentinel and stays as-is)
         instr = int(n.get("instr", 0))
+        if instr != 128:
+            instr &= 0x7F
         ch = channel_for(instr)
         on = int(round(n["time"] * TIME_RESOLUTION))
         off = max(on + 1, int(round((n["time"] + n["dur"]) * TIME_RESOLUTION)))
-        pitch = int(n["pitch"])
-        vel = int(n.get("vel", 80))
+        pitch = max(0, min(127, int(n["pitch"])))
+        vel = max(0, min(127, int(n.get("vel", 80))))
         if ch != 9:
             abs_msgs.append((on, 0, mido.Message(
                 "program_change", program=instr, channel=ch, time=0)))
