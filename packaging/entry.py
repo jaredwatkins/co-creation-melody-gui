@@ -172,6 +172,13 @@ def _run_native() -> None:
 
 
 if __name__ == "__main__":
+    # Required in frozen apps: without it, every multiprocessing child
+    # (e.g. the resource_tracker a library spawns) re-runs this entry point
+    # as a full second instance — windows spawning windows.
+    import multiprocessing
+
+    multiprocessing.freeze_support()
+
     try:
         _run_native()
     except Exception:
