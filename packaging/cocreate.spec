@@ -21,8 +21,10 @@ hiddenimports = (
 
 _datas = [(os.path.join(ROOT, "cocreation", "static"), "cocreation/static")]
 _version_file = os.path.join(ROOT, "cocreation", "VERSION")
+_app_version = "0.1.0"
 if os.path.exists(_version_file):  # written by CI at release time
     _datas.append((_version_file, "cocreation"))
+    _app_version = open(_version_file).read().strip().lstrip("v") or _app_version
 
 a = Analysis(
     [os.path.join(ROOT, "packaging", "entry.py")],
@@ -69,7 +71,8 @@ if sys.platform == "darwin":
         info_plist={
             "CFBundleName": "CoCreate",
             "CFBundleDisplayName": "CoCreate – Human–AI Melody Co-Creation",
-            "CFBundleShortVersionString": "0.1.0",
+            "CFBundleShortVersionString": _app_version,
+            "CFBundleVersion": _app_version,
             "NSHighResolutionCapable": True,
             # Never let launchd spawn a second process for this app; the
             # entry point also defers to a running instance.

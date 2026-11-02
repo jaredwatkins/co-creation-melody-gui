@@ -123,12 +123,41 @@ def _wait_ready(port: int, tries: int = 600) -> None:
             time.sleep(0.1)
 
 
+def _retitle_about_menu() -> None:
+    """macOS names the app-menu item 'About CoCreate'; retitle it 'About'."""
+    try:
+        from AppKit import NSApp
+        from PyObjCTools import AppHelper
+
+        def _fix() -> None:
+            menu = NSApp.mainMenu()
+            if menu is None:
+                return
+            for i in range(menu.numberOfItems()):
+                sub = menu.itemAtIndex_(i).submenu()
+                if sub is None:
+                    continue
+                for j in range(sub.numberOfItems()):
+                    item = sub.itemAtIndex_(j)
+                    if item.action() in (
+                        "orderFrontStandardAboutPanel:",
+                        b"orderFrontStandardAboutPanel:",
+                    ):
+                        item.setTitle_("About")
+
+        AppHelper.callAfter(_fix)
+    except Exception:
+        pass
+
+
 def _serve(window, port: int) -> None:
     """Runs inside webview.start's worker thread: imports the app stack,
     starts uvicorn, then points the already-visible window at the UI."""
     import threading
 
     import uvicorn
+
+    _retitle_about_menu()
 
     try:
         from cocreation.engine import DEFAULT_MODEL_ID, ModelEngine
