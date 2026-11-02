@@ -172,12 +172,22 @@ def _run_native() -> None:
 
 
 if __name__ == "__main__":
-    # Required in frozen apps: without it, every multiprocessing child
-    # (e.g. the resource_tracker a library spawns) re-runs this entry point
-    # as a full second instance — windows spawning windows.
     import multiprocessing
 
     multiprocessing.freeze_support()
+
+    # On POSIX, freeze_support() is a no-op — it only diverts children on
+    # Windows. A library's multiprocessing child re-execs the frozen binary
+    # as `CoCreate -B -S -I -c "<bootstrap code>"`; the bootloader ignores
+    # `-c` and runs this entry point, so every child launches the whole
+    # app again (window, server, lockfile) — windows spawning windows.
+    # Detect that invocation and run the intended bootstrap instead.
+    if "-c" in sys.argv:
+        _i = sys.argv.index("-c")
+        _code = sys.argv[_i + 1] if _i + 1 < len(sys.argv) else ""
+        if _code.startswith("from multiprocessing."):
+            exec(_code, {"__name__": "__mp_main__"})
+            os._exit(0)
 
     try:
         _run_native()
